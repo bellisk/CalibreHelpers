@@ -2,11 +2,11 @@
 import re
 import subprocess
 import sys
-from subprocess import PIPE, STDOUT, check_output
-from tempfile import mkdtemp
 from os import listdir
 from os.path import isfile, join
+from subprocess import PIPE, STDOUT, check_output
 from sys import argv
+from tempfile import mkdtemp
 from time import sleep
 from urllib.error import HTTPError
 
@@ -14,73 +14,9 @@ import pdf2doi
 
 path = '--with-library "/home/rae/Calibre Library"'
 
-ids_to_skip = [
-    "12",
-    "154",
-    "343",
-    "435",
-    "615",
-    "654",
-    "770",
-    "1213",
-    "5106",
-    "5139",
-    "1213",
-    "1216",
-    "1374",
-    "1690",
-    "1845",
-    "1846",
-    "1847",
-    "5560",
-    "6272",
-    "6314",
-    "6317",
-    "9601",
-    "9613",
-    "9615",
-    "9620",
-    "9621",
-    "9622",
-    "9623",
-    "10777",
-    "10946",
-    "10948",
-    "10949",
-    "11095",
-    "11504",
-    "11509",
-    "11512",
-    "11518",
-    "11541",
-    "11580",
-    "11585",
-    "11587",
-    "11591",
-    "11606",
-    "11614",
-    "15857",
-    "15858",
-    "17023",
-    "17033",
-    "17037",
-    "17049",
-    "17050",
-    "17064",
-    "17081",
-    "17103",
-    "17107",
-    "17110",
-    "17112",
-]
-
 
 def get_pdf_file(mypath):
-    ans = [
-        f
-        for f in listdir(mypath)
-        if isfile(join(mypath, f)) and f.endswith(".pdf")
-    ]
+    ans = [f for f in listdir(mypath) if isfile(join(mypath, f)) and f.endswith(".pdf")]
 
     return join(mypath, ans[0])
 
