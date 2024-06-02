@@ -59,7 +59,7 @@ def get_work_ids():
         stdin=PIPE,
     )
     with open("skip_ids.txt") as f:
-        ids_to_skip = [line for line in f.readlines()]
+        ids_to_skip = [line.strip("\n") for line in f.readlines()]
 
     work_ids = str(work_ids).replace("b'Initialized urlfixer\\n", "").split(",")
     work_ids = [i for i in work_ids if i not in ids_to_skip]
@@ -86,6 +86,7 @@ where 2024-06-01 is the earliest date to filter by.
     ids = get_work_ids()
     print(f"Got {len(ids)} works to find DOIs for:")
     print(ids)
+    print("------------------------------------")
 
     pdf2doi.config.set("websearch", True)
     pdf2doi.config.set("webvalidation", True)
@@ -99,7 +100,11 @@ where 2024-06-01 is the earliest date to filter by.
         metadata = get_publication_metadata()
 
         if not metadata or not metadata.get("identifier"):
-            print("No doi found for book {}".format(book_id))
+            print(
+                "No doi found for book {}, adding id to the skip list".format(book_id)
+            )
+            with open("skip_ids.txt", "a") as f:
+                f.write(book_id + "\n")
             continue
 
         command = 'calibredb set_metadata {} --field identifiers:"{}:{}" {}'.format(
