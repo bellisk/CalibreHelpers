@@ -1,0 +1,3 @@
+black~=24.4
+isort~=5.13
+pdf2doi~=1.5
