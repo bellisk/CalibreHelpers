@@ -68,27 +68,34 @@ def get_work_ids():
 
 
 if __name__ == "__main__":
-    date = '2024-06-01'
+    date = "2024-06-01"
     if len(argv) > 1:
         date = argv[1]
 
     if not re.match(r"\d{4}-\d{2}-\d{2}", date):
-        print("""Call like this:
+        print(
+            """Call like this:
         
 python ./add_dois_to_multiple_books.py 2024-06-01
 
 where 2024-06-01 is the earliest date to filter by. 
-        """)
+        """
+        )
         sys.exit()
 
     ids = get_work_ids()
-    print(f"Got {len(ids)} works to find DOIs for")
+    print(f"Got {len(ids)} works to find DOIs for:")
+    print(ids)
 
     pdf2doi.config.set("websearch", True)
     pdf2doi.config.set("webvalidation", True)
     print(pdf2doi.config.print())
 
+    n = 0
     for book_id in ids:
+        n += 1
+        print("------------------------------------")
+        print(f"### Finding DOI for book {book_id} ({n} out of {len(ids)})")
         metadata = get_publication_metadata()
 
         if not metadata or not metadata.get("identifier"):
