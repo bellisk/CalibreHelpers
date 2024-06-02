@@ -58,6 +58,9 @@ def get_work_ids():
         stderr=STDOUT,
         stdin=PIPE,
     )
+    with open("skip_ids.txt") as f:
+        ids_to_skip = [line for line in f.readlines()]
+
     work_ids = str(work_ids).replace("b'Initialized urlfixer\\n", "").split(",")
     work_ids = [i for i in work_ids if i not in ids_to_skip]
 
