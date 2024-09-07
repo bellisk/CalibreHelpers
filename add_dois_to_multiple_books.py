@@ -1,4 +1,5 @@
 # encoding: utf-8
+import logging
 import re
 import subprocess
 import sys
@@ -8,11 +9,28 @@ from subprocess import PIPE, STDOUT, check_output
 from sys import argv
 from tempfile import mkdtemp
 from time import sleep
-from urllib.error import HTTPError
 
 import pdf2doi
 
 path = '--with-library "/home/rae/Calibre Library"'
+pdf2doi_errors = []
+
+
+class SaveErrorHandler(logging.Handler):
+    """pdf2doi logs when it gets an exception from Google (e.g. an HTTP response code
+    of 429, too many requests), but it doesn't raise it or give us any way to catch it.
+    Here we catch any exception logs and put them in a list we can check later.
+    """
+
+    def emit(self, record):
+        if record.levelno == logging.ERROR and record.exc_info:
+            pdf2doi_errors.append(record.getMessage())
+
+
+def set_up_logging():
+    pdf2doi_logger = logging.getLogger("pdf2doi")
+    requests_handler = SaveErrorHandler()
+    pdf2doi_logger.addHandler(requests_handler)
 
 
 def get_pdf_file(mypath):
@@ -33,17 +51,16 @@ def get_publication_metadata():
             stderr=STDOUT,
         )
     except subprocess.CalledProcessError as e:
-        print(e)
-        return False
+        sys.exit(e.output)
 
     pdf_file = get_pdf_file(loc)
+    result = pdf2doi.pdf2doi_singlefile(pdf_file)
 
-    try:
-        return pdf2doi.pdf2doi_singlefile(pdf_file)
-    except HTTPError as e:
-        if e.status == 429:
-            print("Got Too Many Requests exception, stopping for now.")
-        return False
+    if len(pdf2doi_errors) > 0:
+        print(f"Got an error from pdf2doi, stopping for now: {pdf2doi_errors[0]}")
+        sys.exit()
+
+    return result
 
 
 def get_work_ids():
@@ -68,6 +85,8 @@ def get_work_ids():
 
 
 if __name__ == "__main__":
+    set_up_logging()
+
     date = "2024-06-01"
     if len(argv) > 1:
         date = argv[1]
