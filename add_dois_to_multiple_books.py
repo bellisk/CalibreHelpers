@@ -69,7 +69,7 @@ def get_work_ids():
         f'search:"\\"=Needs tagging\\"" and NOT identifiers:"=doi:"'
         f' and date:">={date}"'
     )
-    work_ids = check_output(
+    work_ids_output = check_output(
         calibre_command,
         shell=True,
         stderr=STDOUT,
@@ -78,7 +78,13 @@ def get_work_ids():
     with open("skip_ids.txt") as f:
         ids_to_skip = [line.strip("\n") for line in f.readlines()]
 
-    work_ids = str(work_ids).replace("b'Initialized urlfixer\\n", "").split(",")
+    work_ids_result = re.search(
+        "b'(Initialized urlfixer\\\\n)?(.*)'", str(work_ids_output)
+    )
+    if work_ids_result is None:
+        return []
+
+    work_ids = work_ids_result[2].split(",")
     work_ids = [i for i in work_ids if i not in ids_to_skip]
 
     return work_ids
