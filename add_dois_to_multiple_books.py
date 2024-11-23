@@ -66,8 +66,8 @@ def get_publication_metadata():
 def get_work_ids():
     calibre_command = (
         f'calibredb search {path} formats:"=PDF" and '
-        f'and not formats:"=EPUB" and search:"\\"=Needs tagging\\"" and '
-        f'NOT identifiers:"=doi:" and date:">={date}"'
+        f'not formats:"=EPUB" and search:"\\"=Needs tagging\\"" and '
+        f'not identifiers:"=doi:" and not identifiers:"=arxiv doi:" and date:">={date}"'
     )
     work_ids_output = check_output(
         calibre_command,
