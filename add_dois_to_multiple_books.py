@@ -57,7 +57,13 @@ def get_publication_metadata():
     result = pdf2doi.pdf2doi_singlefile(pdf_file)
 
     if len(pdf2doi_errors) > 0:
-        print(f"Got an error from pdf2doi, stopping for now: {pdf2doi_errors[0]}")
+        print(
+            f"Got an error from pdf2doi for book {book_id}, "
+            f"stopping for now: {pdf2doi_errors[0]}"
+        )
+        if input(f"Add book {book_id} to the skip list? Y/n") != "n":
+            add_to_skip_list(book_id)
+            print("Added!")
         sys.exit()
 
     return result
@@ -88,6 +94,11 @@ def get_work_ids():
     work_ids = [i for i in work_ids if i not in ids_to_skip]
 
     return work_ids
+
+
+def add_to_skip_list(book_id):
+    with open("skip_ids.txt", "a") as f:
+        f.write(book_id + "\n")
 
 
 if __name__ == "__main__":
@@ -128,8 +139,7 @@ where 2024-06-01 is the earliest date to filter by.
             print(
                 "No doi found for book {}, adding id to the skip list".format(book_id)
             )
-            with open("skip_ids.txt", "a") as f:
-                f.write(book_id + "\n")
+            add_to_skip_list(book_id)
             continue
 
         command = 'calibredb set_metadata {} --field identifiers:"{}:{}" {}'.format(
