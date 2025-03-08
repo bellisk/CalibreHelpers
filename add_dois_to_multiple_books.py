@@ -73,7 +73,7 @@ def get_work_ids():
     calibre_command = (
         f'calibredb search {path} formats:"=PDF" and '
         f'not formats:"=EPUB" and search:"\\"=Needs tagging\\"" and '
-        f'not identifiers:"=doi:" and not identifiers:"\"=arxiv doi:\"" and '
+        f'not identifiers:"=doi:" and not identifiers:"\\"=arxiv doi:\\"" and '
         f'date:">={date}"'
     )
     work_ids_output = check_output(
