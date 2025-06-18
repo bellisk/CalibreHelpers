@@ -16,6 +16,15 @@ path = '--with-library "/home/rae/Calibre Library"'
 pdf2doi_errors = []
 
 
+class FormattedDateType(click.ParamType):
+    name = "date"
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, str) and re.match(r"\d{4}-\d{2}-\d{2}", value):
+            return value
+        self.fail(f"{value!r} is not a date in the format YYYY-MM-DD", param, ctx)
+
+
 class SaveErrorHandler(logging.Handler):
     """pdf2doi logs when it gets an exception from Google (e.g. an HTTP response code
     of 429, too many requests), but it doesn't raise it or give us any way to catch it.
@@ -102,21 +111,16 @@ def add_to_skip_list(book_id):
 
 
 @click.command()
-@click.argument("date")
+@click.option(
+    "--date",
+    default="2025-06-01",
+    type=FormattedDateType(),
+    help="The earliest added date to filter by in Calibre. Format: YYYY-MM-DD. "
+         "Default: 2025-06-01.",
+)
 def run(date):
     click.echo(date)
     set_up_logging()
-
-    if not re.match(r"\d{4}-\d{2}-\d{2}", date):
-        click.echo(
-            """Call like this:
-        
-python ./add_dois_to_multiple_books.py 2024-06-01
-
-where 2024-06-01 is the earliest date to filter by. 
-        """
-        )
-        sys.exit()
 
     ids = get_work_ids(date)
     click.echo(f"Got {len(ids)} works to find DOIs for:")
