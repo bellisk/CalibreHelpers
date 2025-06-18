@@ -43,9 +43,8 @@ def get_publication_metadata(book_id):
     loc = mkdtemp()
     try:
         check_output(
-            'calibredb export --dont-save-cover --dont-write-opf --single-dir --to-dir "{}" {} {}'.format(
-                loc, path, book_id
-            ),
+            f"calibredb export --dont-save-cover --dont-write-opf --single-dir "
+            f'--to-dir "{loc}" {path} {book_id}',
             shell=True,
             stdin=PIPE,
             stderr=STDOUT,
@@ -136,14 +135,14 @@ where 2024-06-01 is the earliest date to filter by.
         metadata = get_publication_metadata(book_id)
 
         if not metadata or not metadata.get("identifier"):
-            click.echo(
-                "No doi found for book {}, adding id to the skip list".format(book_id)
-            )
+            click.echo(f"No doi found for book {book_id}, adding id to the skip list")
             add_to_skip_list(book_id)
             continue
 
-        command = 'calibredb set_metadata {} --field identifiers:"{}:{}" {}'.format(
-            path, metadata["identifier_type"], metadata["identifier"], book_id
+        command = (
+            f"calibredb set_metadata {path} --field "
+            f"identifiers:\"{metadata['identifier_type']}:{metadata['identifier']}\" "
+            f"{book_id}"
         )
         result = check_output(
             command,
@@ -152,9 +151,8 @@ where 2024-06-01 is the earliest date to filter by.
             stdin=PIPE,
         )
         click.echo(
-            "Updated book {} with identifier {} {}".format(
-                book_id, metadata["identifier_type"], metadata["identifier"]
-            )
+            f"Updated book {book_id} with identifier {metadata['identifier_type']} "
+            f"{metadata['identifier']}"
         )
 
         sleep(15)
