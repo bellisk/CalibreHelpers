@@ -116,10 +116,14 @@ def add_to_skip_list(book_id):
     default="2025-06-01",
     type=FormattedDateType(),
     help="The earliest added date to filter by in Calibre. Format: YYYY-MM-DD. "
-         "Default: 2025-06-01.",
+    "Default: 2025-06-01.",
 )
-def run(date):
-    click.echo(date)
+@click.option(
+    "--use-web-search",
+    is_flag=True,
+    help="Search for the document's title on the web to find its DOI.",
+)
+def run(date, use_web_search):
     set_up_logging()
 
     ids = get_work_ids(date)
@@ -127,8 +131,9 @@ def run(date):
     click.echo(ids)
     click.echo("------------------------------------")
 
-    pdf2doi.config.set("websearch", False)
+    pdf2doi.config.set("websearch", use_web_search)
     pdf2doi.config.set("webvalidation", True)
+    click.echo("pdf2doi config:")
     click.echo(pdf2doi.config.print())
 
     n = 0
