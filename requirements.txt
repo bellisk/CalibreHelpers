@@ -1,2 +1,2 @@
-click~=8.1.7
+click~=8.2.1
 pdf2doi~=1.5
