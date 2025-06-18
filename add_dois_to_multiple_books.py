@@ -6,10 +6,10 @@ import sys
 from os import listdir
 from os.path import isfile, join
 from subprocess import PIPE, STDOUT, check_output
-from sys import argv
 from tempfile import mkdtemp
 from time import sleep
 
+import click
 import pdf2doi
 
 path = '--with-library "/home/rae/Calibre Library"'
@@ -39,7 +39,7 @@ def get_pdf_file(mypath):
     return join(mypath, ans[0])
 
 
-def get_publication_metadata():
+def get_publication_metadata(book_id):
     loc = mkdtemp()
     try:
         check_output(
@@ -57,19 +57,19 @@ def get_publication_metadata():
     result = pdf2doi.pdf2doi_singlefile(pdf_file)
 
     if len(pdf2doi_errors) > 0:
-        print(
+        click.echo(
             f"Got an error from pdf2doi for book {book_id}, "
             f"stopping for now: {pdf2doi_errors[0]}"
         )
         if input(f"Add book {book_id} to the skip list? Y/n") != "n":
             add_to_skip_list(book_id)
-            print("Added!")
+            click.echo("Added!")
         sys.exit()
 
     return result
 
 
-def get_work_ids():
+def get_work_ids(date):
     calibre_command = (
         f'calibredb search {path} formats:"=PDF" and '
         f'not formats:"=EPUB" and search:"\\"=Needs tagging\\"" and '
@@ -102,15 +102,14 @@ def add_to_skip_list(book_id):
         f.write(book_id + "\n")
 
 
-if __name__ == "__main__":
+@click.command()
+@click.argument("date")
+def run(date):
+    click.echo(date)
     set_up_logging()
 
-    date = "2024-06-01"
-    if len(argv) > 1:
-        date = argv[1]
-
     if not re.match(r"\d{4}-\d{2}-\d{2}", date):
-        print(
+        click.echo(
             """Call like this:
         
 python ./add_dois_to_multiple_books.py 2024-06-01
@@ -120,24 +119,24 @@ where 2024-06-01 is the earliest date to filter by.
         )
         sys.exit()
 
-    ids = get_work_ids()
-    print(f"Got {len(ids)} works to find DOIs for:")
-    print(ids)
-    print("------------------------------------")
+    ids = get_work_ids(date)
+    click.echo(f"Got {len(ids)} works to find DOIs for:")
+    click.echo(ids)
+    click.echo("------------------------------------")
 
-    pdf2doi.config.set("websearch", True)
+    pdf2doi.config.set("websearch", False)
     pdf2doi.config.set("webvalidation", True)
-    print(pdf2doi.config.print())
+    click.echo(pdf2doi.config.print())
 
     n = 0
     for book_id in ids:
         n += 1
-        print("------------------------------------")
-        print(f"### Finding DOI for book {book_id} ({n} out of {len(ids)})")
-        metadata = get_publication_metadata()
+        click.echo("------------------------------------")
+        click.echo(f"### Finding DOI for book {book_id} ({n} out of {len(ids)})")
+        metadata = get_publication_metadata(book_id)
 
         if not metadata or not metadata.get("identifier"):
-            print(
+            click.echo(
                 "No doi found for book {}, adding id to the skip list".format(book_id)
             )
             add_to_skip_list(book_id)
@@ -152,10 +151,14 @@ where 2024-06-01 is the earliest date to filter by.
             stderr=STDOUT,
             stdin=PIPE,
         )
-        print(
+        click.echo(
             "Updated book {} with identifier {} {}".format(
                 book_id, metadata["identifier_type"], metadata["identifier"]
             )
         )
 
         sleep(15)
+
+
+if __name__ == "__main__":
+    run()
