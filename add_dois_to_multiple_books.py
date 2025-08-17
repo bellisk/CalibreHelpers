@@ -141,7 +141,7 @@ def validate_fields(fields):
     multiple=True,
     default=["doi"],
     help="Fields to update in Calibre based on metadata derived from the document. "
-    "Default: doi. Options: doi, title.",
+    f"Default: doi. Options: {', '.join(supported_fields)}.",
 )
 @click.option(
     "--use-web-search",
@@ -187,27 +187,9 @@ def run(date, fields, use_web_search):
                 new_metadata[metadata["identifier_type"]] = metadata["identifier"]
 
         if "title" in fields:
-            if not metadata.get("possible_titles"):
-                click.echo(f"No possible titles found for document {book_id}")
-            else:
-                enumerated_titles = list(enumerate(metadata["possible_titles"]))
-                message = (
-                    "Which of the possible titles found in the document should "
-                    "be used?\n"
-                )
-                for no, title in enumerated_titles:
-                    message += f"\t{no}. {title}\n"
-                message += f"\t{len(enumerated_titles)}. Don't update title\n"
-                value = click.prompt(message, type=int)
-
-                if value == len(enumerated_titles):
-                    click.echo("Title will not be updated.")
-                elif value not in range(len(enumerated_titles)):
-                    click.echo("Please enter a number from the list above.")
-                else:
-                    chosen_title = metadata["possible_titles"][value]
-                    fields_update_options += f'--field title:"{chosen_title}" '
-                    new_metadata["title"] = chosen_title
+            fields_update_options += get_title_update_option(
+                book_id, metadata, new_metadata
+            )
 
         if len(fields_update_options) == 0:
             click.echo("Nothing to update.")
@@ -226,6 +208,30 @@ def run(date, fields, use_web_search):
         )
 
         sleep(15)
+
+
+def get_title_update_option(book_id, metadata, new_metadata):
+    possible_titles = metadata.get("possible_titles")
+    if not possible_titles:
+        click.echo(f"No possible titles found for document {book_id}")
+        return ""
+
+    message = "Which of the possible titles found in the document should be used?\n"
+    for no, title in list(enumerate(possible_titles)):
+        message += f"\t{no}. {title}\n"
+    message += f"\t{len(possible_titles)}. Don't update title\n"
+    value = click.prompt(message, type=int)
+
+    while value not in range(len(possible_titles) + 1):
+        value = click.prompt("Please enter a number from the list above", type=int)
+
+    if value == len(possible_titles):
+        click.echo("Title will not be updated.")
+        return ""
+    else:
+        chosen_title = possible_titles[value]
+        new_metadata["title"] = chosen_title
+        return f'--field title:"{chosen_title}" '
 
 
 if __name__ == "__main__":
