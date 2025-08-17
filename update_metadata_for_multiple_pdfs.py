@@ -10,8 +10,13 @@ from time import sleep
 import click
 import pdf2doi
 
+from src.calibre import (
+    CalibreException,
+    CalibreHelper,
+)
+
 supported_fields = {"doi", "title"}
-path = '--with-library "/home/rae/Calibre Library"'
+library_path = "/home/rae/Calibre Library"
 pdf2doi_errors = []
 
 
@@ -46,7 +51,7 @@ def get_publication_metadata(book_id, fields):
     try:
         check_output(
             f"calibredb export --dont-save-cover --dont-write-opf --single-dir "
-            f'--to-dir "{loc}" --template="{id}" {path} {book_id}',
+            f'--to-dir "{loc}" --template="{id}" {library_path} {book_id}',
             shell=True,
             stdin=PIPE,
             stderr=STDOUT,
@@ -79,17 +84,21 @@ def get_publication_metadata(book_id, fields):
 
 def get_work_ids(date):
     calibre_command = (
-        f'calibredb search {path} formats:"=PDF" and '
+        f'calibredb search {library_path} formats:"=PDF" and '
         f'not formats:"=EPUB" and search:"\\"=Needs tagging\\"" and '
         f'not identifiers:"=doi:" and not identifiers:"\\"=arxiv doi:\\"" and '
         f'date:">={date}"'
     )
-    work_ids_output = check_output(
-        calibre_command,
-        shell=True,
-        stderr=STDOUT,
-        stdin=PIPE,
-    )
+    try:
+        work_ids_output = check_output(
+            calibre_command,
+            shell=True,
+            stderr=STDOUT,
+            stdin=PIPE,
+        )
+    except Exception as e:
+        print(e)
+        raise e
     with open("skip_ids.txt") as f:
         ids_to_skip = [line.strip("\n") for line in f.readlines()]
 
@@ -144,6 +153,13 @@ def validate_fields(fields):
 def run(date, fields, use_web_search):
     set_up_logging()
 
+    calibre = CalibreHelper(library_path=library_path)
+    try:
+        calibre.check_library()
+    except CalibreException as e:
+        click.echo(e)
+        sys.exit()
+
     validate_fields(fields)
     click.echo(f"Metadata fields to update: {', '.join(fields)}")
 
@@ -188,7 +204,9 @@ def run(date, fields, use_web_search):
             click.echo("Nothing to update.")
             continue
 
-        command = f"calibredb set_metadata {path} {fields_update_options} {book_id}"
+        command = (
+            f"calibredb set_metadata {library_path} {fields_update_options} {book_id}"
+        )
         result = check_output(
             command,
             shell=True,
