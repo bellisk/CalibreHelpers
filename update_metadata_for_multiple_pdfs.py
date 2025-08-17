@@ -180,7 +180,7 @@ def run(date, fields, use_web_search):
         click.echo(f"### Finding DOI for book {book_id} ({n} out of {len(ids)})")
         metadata = get_publication_metadata(book_id, fields)
         new_metadata = {}
-        fields_update_options = ""
+        fields_update_options = {}
 
         if "doi" in fields:
             if not metadata.get("identifier"):
@@ -189,33 +189,23 @@ def run(date, fields, use_web_search):
                 )
                 add_to_skip_list(book_id)
             else:
-                fields_update_options += (
-                    f"--field identifiers:"
-                    f'"{metadata["identifier_type"]}:{metadata["identifier"]}" '
+                fields_update_options["identifiers"] = (
+                    f'"{metadata["identifier_type"]}:{metadata["identifier"]}"'
                 )
-                new_metadata[metadata["identifier_type"]] = metadata["identifier"]
 
         if "title" in fields:
-            fields_update_options += get_title_update_option(
-                book_id, metadata, new_metadata
+            fields_update_options.update(
+                get_title_update_option(book_id, metadata, new_metadata)
             )
 
         if len(fields_update_options) == 0:
             click.echo("Nothing to update.")
             continue
 
-        command = (
-            f"calibredb set_metadata {library_path} {fields_update_options} {book_id}"
-        )
-        result = check_output(
-            command,
-            shell=True,
-            stderr=STDOUT,
-            stdin=PIPE,
-        )
+        calibre.set_metadata(book_id, fields_update_options)
         click.echo(
             f"Updated book {book_id} with metadata "
-            f"{[k + ': ' + v for k, v in new_metadata.items()]}"
+            f"{[k + ': ' + v for k, v in fields_update_options.items()]}"
         )
 
         sleep(15)
@@ -242,7 +232,7 @@ def get_title_update_option(book_id, metadata, new_metadata):
     else:
         chosen_title = possible_titles[value]
         new_metadata["title"] = chosen_title
-        return f'--field title:"{chosen_title}" '
+        return {"title": chosen_title}
 
 
 if __name__ == "__main__":
