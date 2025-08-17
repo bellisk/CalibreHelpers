@@ -2,8 +2,7 @@ import logging
 import re
 import subprocess
 import sys
-from os import listdir
-from os.path import isfile, join
+from os.path import join
 from subprocess import PIPE, STDOUT, check_output
 from tempfile import mkdtemp
 from time import sleep
@@ -42,12 +41,6 @@ def set_up_logging():
     pdf2doi_logger.addHandler(requests_handler)
 
 
-def get_pdf_filepath(mypath):
-    ans = [f for f in listdir(mypath) if isfile(join(mypath, f)) and f.endswith(".pdf")]
-
-    return join(mypath, ans[0])
-
-
 def get_publication_metadata(book_id, fields):
     loc = mkdtemp()
     try:
@@ -61,7 +54,7 @@ def get_publication_metadata(book_id, fields):
     except subprocess.CalledProcessError as e:
         sys.exit(e.output)
 
-    pdf_filepath = get_pdf_filepath(loc)
+    pdf_filepath = join(loc, f"{book_id}.pdf")
     result = {}
 
     if "doi" in fields:
