@@ -53,7 +53,7 @@ def get_publication_metadata(book_id):
     try:
         check_output(
             f"calibredb export --dont-save-cover --dont-write-opf --single-dir "
-            f'--to-dir "{loc}" {path} {book_id}',
+            f'--to-dir "{loc}" --template="{id}" {path} {book_id}',
             shell=True,
             stdin=PIPE,
             stderr=STDOUT,
