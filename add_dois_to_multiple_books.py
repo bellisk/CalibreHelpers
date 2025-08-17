@@ -12,6 +12,7 @@ from time import sleep
 import click
 import pdf2doi
 
+supported_fields = {"doi", "title"}
 path = '--with-library "/home/rae/Calibre Library"'
 pdf2doi_errors = []
 
@@ -42,13 +43,13 @@ def set_up_logging():
     pdf2doi_logger.addHandler(requests_handler)
 
 
-def get_pdf_file(mypath):
+def get_pdf_filepath(mypath):
     ans = [f for f in listdir(mypath) if isfile(join(mypath, f)) and f.endswith(".pdf")]
 
     return join(mypath, ans[0])
 
 
-def get_publication_metadata(book_id):
+def get_publication_metadata(book_id, fields):
     loc = mkdtemp()
     try:
         check_output(
@@ -61,8 +62,15 @@ def get_publication_metadata(book_id):
     except subprocess.CalledProcessError as e:
         sys.exit(e.output)
 
-    pdf_file = get_pdf_file(loc)
-    result = pdf2doi.pdf2doi_singlefile(pdf_file)
+    pdf_filepath = get_pdf_filepath(loc)
+    result = {}
+
+    if "doi" in fields:
+        result.update(**pdf2doi.pdf2doi_singlefile(pdf_filepath))
+
+    if "title" in fields:
+        with open(pdf_filepath, "rb") as pdf:
+            result["possible_titles"] = pdf2doi.finders.find_possible_titles(pdf)
 
     if len(pdf2doi_errors) > 0:
         click.echo(
@@ -110,6 +118,16 @@ def add_to_skip_list(book_id):
         f.write(book_id + "\n")
 
 
+def validate_fields(fields):
+    unsupported_fields = set(fields).difference(supported_fields)
+    if len(unsupported_fields) > 0:
+        click.echo(
+            f"Unsupported field(s) input: {', '.join(unsupported_fields)}."
+            f"Supported fields are: {', '.join(supported_fields)}."
+        )
+        sys.exit()
+
+
 @click.command()
 @click.option(
     "--date",
@@ -119,15 +137,26 @@ def add_to_skip_list(book_id):
     "Default: 2025-06-01.",
 )
 @click.option(
+    "--fields",
+    "-f",
+    multiple=True,
+    default=["doi"],
+    help="Fields to update in Calibre based on metadata derived from the document. "
+    "Default: doi. Options: doi, title.",
+)
+@click.option(
     "--use-web-search",
     is_flag=True,
     help="Search for the document's title on the web to find its DOI.",
 )
-def run(date, use_web_search):
+def run(date, fields, use_web_search):
     set_up_logging()
 
+    validate_fields(fields)
+    click.echo(f"Metadata fields to update: {', '.join(fields)}")
+
     ids = get_work_ids(date)
-    click.echo(f"Got {len(ids)} works to find DOIs for:")
+    click.echo(f"Got {len(ids)} works to find metadata for:")
     click.echo(ids)
     click.echo("------------------------------------")
 
@@ -141,18 +170,51 @@ def run(date, use_web_search):
         n += 1
         click.echo("------------------------------------")
         click.echo(f"### Finding DOI for book {book_id} ({n} out of {len(ids)})")
-        metadata = get_publication_metadata(book_id)
+        metadata = get_publication_metadata(book_id, fields)
+        new_metadata = {}
+        fields_update_options = ""
 
-        if not metadata or not metadata.get("identifier"):
-            click.echo(f"No doi found for book {book_id}, adding id to the skip list")
-            add_to_skip_list(book_id)
+        if "doi" in fields:
+            if not metadata.get("identifier"):
+                click.echo(
+                    f"No DOI found for document {book_id}, adding id to the skip list"
+                )
+                add_to_skip_list(book_id)
+            else:
+                fields_update_options += (
+                    f"--field identifiers:"
+                    f'"{metadata["identifier_type"]}:{metadata["identifier"]}" '
+                )
+                new_metadata[metadata["identifier_type"]] = metadata["identifier"]
+
+        if "title" in fields:
+            if not metadata.get("possible_titles"):
+                click.echo(f"No possible titles found for document {book_id}")
+            else:
+                enumerated_titles = list(enumerate(metadata["possible_titles"]))
+                message = (
+                    "Which of the possible titles found in the document should "
+                    "be used?\n"
+                )
+                for no, title in enumerated_titles:
+                    message += f"\t{no}. {title}\n"
+                message += f"\t{len(enumerated_titles)}. Don't update title\n"
+                value = click.prompt(message, type=int)
+
+                if value == len(enumerated_titles):
+                    click.echo("Title will not be updated.")
+                elif value not in range(len(enumerated_titles)):
+                    click.echo("Please enter a number from the list above.")
+                else:
+                    chosen_title = metadata["possible_titles"][value]
+                    fields_update_options += f'--field title:"{chosen_title}" '
+                    new_metadata["title"] = chosen_title
+
+        if len(fields_update_options) == 0:
+            click.echo("Nothing to update.")
             continue
 
-        command = (
-            f"calibredb set_metadata {path} --field "
-            f"identifiers:\"{metadata['identifier_type']}:{metadata['identifier']}\" "
-            f"{book_id}"
-        )
+        command = f"calibredb set_metadata {path} {fields_update_options} {book_id}"
         result = check_output(
             command,
             shell=True,
@@ -160,8 +222,8 @@ def run(date, use_web_search):
             stdin=PIPE,
         )
         click.echo(
-            f"Updated book {book_id} with identifier {metadata['identifier_type']} "
-            f"{metadata['identifier']}"
+            f"Updated book {book_id} with metadata "
+            f"{[k + ': ' + v for k, v in new_metadata.items()]}"
         )
 
         sleep(15)
