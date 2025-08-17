@@ -5,8 +5,7 @@ from os import devnull
 from subprocess import CalledProcessError, call
 from urllib.parse import urlparse
 
-from .ao3_utils import AO3_SERIES_KEYS
-from .utils import TAG_TYPES, Bcolors, check_subprocess_output, log
+from .utils import Bcolors, check_subprocess_output, log
 
 ADD_GROUPED_SEARCH_SCRIPT = """from calibre.library import db
 
@@ -93,6 +92,7 @@ class CalibreHelper(object):
                     "Calibre library or update it.",
                 )
 
+        # Check whether there is a library at the specified path
         parsed_path = urlparse(self.path)
         path_is_url = parsed_path.scheme and parsed_path.netloc
         path_is_dir = os.path.isdir(self.path)
@@ -104,76 +104,13 @@ class CalibreHelper(object):
                 Bcolors.WARNING,
             )
 
+        # Check if there is another Calibre instance running
+        command = f"calibredb list --limit 1 {self.library_access_string}"
+
         try:
-            # Check that our custom columns are set up, and set them up if not.
-            self.check_or_create_words_column()
-            self.check_or_create_extra_columns()
+            check_and_clean_output(command)
         except CalledProcessError as e:
-            output = clean_output(e.output)
-
-            if "urllib.error.URLError" in output:
-                # The path is a url and it's wrong
-                message = f"Error connecting to the url {self.path}"
-            elif "Not Found" in output:
-                # The path is the url to a Calibre server, but the library name is wrong
-                message = f"No Calibre library found at the url {self.path}"
-            else:
-                # If the username or password is wrong, calibredb gives us a nice error
-                # message, so we can just output that.
-                # If there's a new kind of error not already handled, we get a stack
-                # trace. Just output it and deal with it then.
-                message = output
-
-            raise CalibreException(
-                f"Error while making sure custom columns exist in Calibre library: "
-                f"{message}",
-            )
-
-    def check_or_create_words_column(self):
-        res = check_and_clean_output(
-            f"calibredb custom_columns {self.library_access_string}"
-        )
-        columns = res.split("\n")
-        for c in columns:
-            if c.startswith("words ("):
-                return
-
-        log("Adding custom column 'words' to Calibre library")
-        check_and_clean_output(
-            f"calibredb add_custom_column {self.library_access_string} words Words int"
-        )
-
-    def check_or_create_extra_columns(self):
-        res = check_and_clean_output(
-            f"calibredb custom_columns {self.library_access_string}"
-        )
-        # Get rid of the number after each column name, e.g. "columnname (1)"
-        columns = [c.split(" ")[0] for c in res.split("\n")]
-        if set(columns).intersection(AO3_SERIES_KEYS) == set(AO3_SERIES_KEYS):
-            log("Custom AO3 series columns are in Calibre Library")
-        else:
-            log("Adding custom AO3 series columns to Calibre library")
-            for c in AO3_SERIES_KEYS:
-                check_and_clean_output(
-                    f"calibredb add_custom_column {self.library_access_string} "
-                    f"{c} {c} series"
-                )
-
-            log("Adding grouped search term 'allseries' to Calibre Library")
-            script = ADD_GROUPED_SEARCH_SCRIPT % self.path
-            check_and_clean_output(
-                f"calibre-debug -c '{script}'",
-            )
-
-        if set(columns).intersection(TAG_TYPES) == set(TAG_TYPES):
-            log("Custom AO3 tag-type columns are in Calibre Library")
-        else:
-            log("Adding AO3 tag types as columns in Calibre library")
-            for tag in TAG_TYPES:
-                check_and_clean_output(
-                    f"calibredb add_custom_column {self.library_access_string} "
-                    f"{tag} {tag} text --is-multiple"
-                )
+            raise CalibreException(clean_output(e.output))
 
     def search(
         self, authors=None, urls=None, series=None, book_formats=None, incomplete=False
