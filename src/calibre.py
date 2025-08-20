@@ -33,7 +33,15 @@ def check_and_clean_output(command):
 
 
 def collate_search_terms(
-    authors=None, book_formats=None, series=None, urls=None, incomplete=False
+    saved_search=None,
+    authors=None,
+    book_formats=None,
+    exclude_book_formats=None,
+    series=None,
+    urls=None,
+    incomplete=False,
+    after_date=None,
+    exclude_identifier_types=None,
 ):
     """Turn lists of search terms of different kinds into a search query for calibredb.
 
@@ -42,6 +50,8 @@ def collate_search_terms(
     for this method, and may well come back to bite me.
     """
     search_term_sets = []
+    if saved_search:
+        search_term_sets.append(f'search:"\\"={saved_search}\\""')
     if authors:
         # author:"=author or \(author\)"
         # This catches both exact use of the author name and use of a pseud,
@@ -50,7 +60,7 @@ def collate_search_terms(
             " OR ".join([f'author:"={author} or \\({author}\\)"' for author in authors])
         )
     if urls:
-        search_term_sets.append(f'Identifiers:url:"={" OR ".join(urls)}"')
+        search_term_sets.append(f'identifiers:url:"={" OR ".join(urls)}"')
     if series:
         # Calibre seems to escape only the character & in series titles
         search_term_sets.append(
@@ -58,10 +68,30 @@ def collate_search_terms(
         )
     if book_formats:
         search_term_sets.append(
-            f'Format:"={" OR ".join([book_format.upper() for book_format in book_formats])}"'
+            f'formats:"={" OR ".join([book_format.upper() for book_format in book_formats])}"'
+        )
+    if exclude_book_formats:
+        search_term_sets.append(
+            " AND ".join(
+                [
+                    f'NOT formats:"={book_format.upper()}"'
+                    for book_format in exclude_book_formats
+                ]
+            )
         )
     if incomplete:
         search_term_sets.append("#status:=In-Progress")
+    if after_date:
+        search_term_sets.append(f'date:">={after_date}"')
+    if exclude_identifier_types:
+        search_term_sets.append(
+            " AND ".join(
+                [
+                    f'NOT identifiers:"={id_type}"'
+                    for id_type in exclude_identifier_types
+                ]
+            )
+        )
 
     return " AND ".join(search_term_sets)
 
@@ -113,7 +143,16 @@ class CalibreHelper(object):
             raise CalibreException(clean_output(e.output))
 
     def search(
-        self, authors=None, urls=None, series=None, book_formats=None, incomplete=False
+        self,
+        saved_search=None,
+        authors=None,
+        urls=None,
+        series=None,
+        book_formats=None,
+        exclude_book_formats=None,
+        incomplete=False,
+        after_date=False,
+        exclude_identifier_types=None,
     ):
         """Accepts lists of authors/urls/series/formats to search calibredb for.
 
@@ -124,10 +163,19 @@ class CalibreHelper(object):
         Returns a list of book ids that match the search.
         """
         search_terms = collate_search_terms(
-            authors, book_formats, series, urls, incomplete
+            saved_search,
+            authors,
+            book_formats,
+            exclude_book_formats,
+            series,
+            urls,
+            incomplete,
+            after_date,
+            exclude_identifier_types,
         )
 
         command = f"calibredb search {search_terms} {self.library_access_string}"
+        print(command)
 
         try:
             result = check_and_clean_output(command)

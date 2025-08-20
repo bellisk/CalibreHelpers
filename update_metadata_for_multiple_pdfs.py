@@ -10,10 +10,7 @@ from time import sleep
 import click
 import pdf2doi
 
-from src.calibre import (
-    CalibreException,
-    CalibreHelper,
-)
+from src.calibre import CalibreException, CalibreHelper
 
 supported_fields = {"doi", "title"}
 library_path = "/home/rae/Calibre Library"
@@ -82,33 +79,22 @@ def get_publication_metadata(book_id, fields):
     return result
 
 
-def get_work_ids(date):
-    calibre_command = (
-        f'calibredb search {library_path} formats:"=PDF" and '
-        f'not formats:"=EPUB" and search:"\\"=Needs tagging\\"" and '
-        f'not identifiers:"=doi:" and not identifiers:"\\"=arxiv doi:\\"" and '
-        f'date:">={date}"'
+def get_work_ids(date, calibre):
+    work_ids = calibre.search(
+        saved_search="Needs tagging",
+        book_formats=["PDF"],
+        exclude_book_formats=["EPUB"],
+        after_date=date,
+        exclude_identifier_types=["doi", "arxiv doi"],
     )
-    try:
-        work_ids_output = check_output(
-            calibre_command,
-            shell=True,
-            stderr=STDOUT,
-            stdin=PIPE,
-        )
-    except Exception as e:
-        print(e)
-        raise e
+
     with open("skip_ids.txt") as f:
         ids_to_skip = [line.strip("\n") for line in f.readlines()]
 
-    work_ids_result = re.search(
-        "b'(Initialized urlfixer\\\\n)?(.*)'", str(work_ids_output)
-    )
-    if work_ids_result is None:
+    if work_ids is None:
         return []
 
-    work_ids = work_ids_result[2].split(",")
+    work_ids = work_ids[2].split(",")
     work_ids = [i for i in work_ids if i not in ids_to_skip]
 
     return work_ids
@@ -163,7 +149,7 @@ def run(date, fields, use_web_search):
     validate_fields(fields)
     click.echo(f"Metadata fields to update: {', '.join(fields)}")
 
-    ids = get_work_ids(date)
+    ids = get_work_ids(date, calibre)
     click.echo(f"Got {len(ids)} works to find metadata for:")
     click.echo(ids)
     click.echo("------------------------------------")
