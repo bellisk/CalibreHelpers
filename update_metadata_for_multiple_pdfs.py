@@ -43,18 +43,9 @@ def set_up_logging():
     pdf2doi_logger.addHandler(requests_handler)
 
 
-def get_publication_metadata(book_id, fields):
+def get_publication_metadata(book_id, fields, calibre):
     loc = mkdtemp()
-    try:
-        check_output(
-            f"calibredb export --dont-save-cover --dont-write-opf --single-dir "
-            f'--to-dir "{loc}" --template="{id}" {library_path} {book_id}',
-            shell=True,
-            stdin=PIPE,
-            stderr=STDOUT,
-        )
-    except subprocess.CalledProcessError as e:
-        sys.exit(e.output)
+    calibre.export(book_id, loc)
 
     pdf_filepath = join(loc, f"{book_id}.pdf")
     result = {}
@@ -164,7 +155,7 @@ def run(date, fields, use_web_search):
         n += 1
         click.echo("------------------------------------")
         click.echo(f"### Finding DOI for book {book_id} ({n} out of {len(ids)})")
-        metadata = get_publication_metadata(book_id, fields)
+        metadata = get_publication_metadata(book_id, fields, calibre)
         new_metadata = {}
         fields_update_options = {}
 
