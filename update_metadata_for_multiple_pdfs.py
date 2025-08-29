@@ -216,10 +216,16 @@ def run(date, fields, use_web_search, no_auto_skip):
 
 
 def get_title_update_option(book_id, metadata, existing_title):
-    possible_titles = metadata.get("possible_titles")
+    possible_titles = [
+        t for t in metadata.get("possible_titles") if t != existing_title
+    ]
     if not possible_titles:
-        click.echo(f"No possible titles found for document {book_id}")
-        return ""
+        click.echo(
+            f"""
+Document {book_id}'s title in Calibre is "{existing_title}".
+No other potential titles were found in the document."""
+        )
+        return {}
 
     message = f"""
 Document's title in Calibre is "{existing_title}".
