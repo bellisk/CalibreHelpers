@@ -2,17 +2,10 @@ import json
 import os.path
 from errno import ENOENT
 from os import devnull
-from subprocess import CalledProcessError, call
+from subprocess import PIPE, STDOUT, CalledProcessError, call, check_output
 from urllib.parse import urlparse
 
-from .utils import Bcolors, check_subprocess_output, log
-
-ADD_GROUPED_SEARCH_SCRIPT = """from calibre.library import db
-
-db = db("%s").new_api
-db.set_pref("grouped_search_terms", {"allseries": ["series", "#series00", "#series01", "#series02", "#series03"]})
-print(db.pref("grouped_search_terms"))
-"""
+import click
 
 
 class CalibreException(Exception):
@@ -29,7 +22,9 @@ def check_and_clean_output(command):
     """Runs a command as a subprocess, raising CalledProcessError if necessary,
     and removes the cruft calibredb adds to the output.
     """
-    return clean_output(check_subprocess_output(command))
+    return clean_output(
+        check_output(command, shell=True, stderr=STDOUT, stdin=PIPE, text=True)
+    )
 
 
 def collate_search_terms(
@@ -128,10 +123,9 @@ class CalibreHelper(object):
         path_is_dir = os.path.isdir(self.path)
 
         if not (path_is_url or path_is_dir):
-            log(
+            click.echo(
                 f"There is no Calibre library at the path '{self.path}', "
                 f"so Calibre will create one",
-                Bcolors.WARNING,
             )
 
         # Check if there is another Calibre instance running
@@ -188,13 +182,13 @@ class CalibreHelper(object):
                 raise CalibreException(e.output)
 
     def get_author_works_count(self, author):
-        log(f"Getting work count for {author} in calibre")
+        click.echo(f"Getting work count for {author} in calibre")
         result = self.search(authors=[author])
 
         return len(result)
 
     def get_series_works_count(self, series_title):
-        log(f"Getting work count for {series_title} in calibre")
+        click.echo(f"Getting work count for {series_title} in calibre")
         result = self.search(series=[series_title])
 
         return len(result)
