@@ -154,7 +154,7 @@ def run(date, fields, use_web_search):
     for book_id in ids:
         n += 1
         click.echo("------------------------------------")
-        click.echo(f"### Finding DOI for book {book_id} ({n} out of {len(ids)})")
+        click.echo(f"### Finding metadata for book {book_id} ({n} out of {len(ids)})")
         metadata = get_publication_metadata(book_id, fields, calibre)
         new_metadata = {}
         fields_update_options = {}

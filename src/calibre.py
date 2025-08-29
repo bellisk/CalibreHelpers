@@ -208,32 +208,57 @@ class CalibreHelper(object):
         # Return the filepath to the new epub file
         return os.path.join(location, f"{book_id}.epub")
 
-    def list_titles_and_urls(
-        self, authors=None, urls=None, series=None, book_formats=None, incomplete=False
+    def list_metadata(
+        self,
+        fields_to_show=None,
+        identifiers_to_show=None,
+        authors=None,
+        urls=None,
+        series=None,
+        book_formats=None,
+        incomplete=False,
     ):
+        if fields_to_show is None:
+            fields_to_show = []
+
+        fields_to_search_for = fields_to_show
+
+        if identifiers_to_show is not None:
+            fields_to_search_for.append("*identifier")
+
         search_terms = collate_search_terms(
-            authors, book_formats, series, urls, incomplete
+            authors=authors,
+            book_formats=book_formats,
+            series=series,
+            urls=urls,
+            incomplete=incomplete,
         )
 
         command = (
             f"calibredb list --search {search_terms} {self.library_access_string} "
-            f"--fields title,*identifier --for-machine"
+            f"--fields {','.join(fields_to_search_for)} --for-machine"
         )
 
         try:
-            result = check_and_clean_output(command)
+            output = check_and_clean_output(command)
 
-            result_json = json.loads(result)
+            output_json = json.loads(output)
         except CalledProcessError as e:
             if "No books matching the search expression" in e.output:
                 return []
             else:
                 raise CalibreException(e.output)
 
-        return [
-            {"title": r["title"], "url": r["*identifier"].replace("url:", "")}
-            for r in result_json
-        ]
+        def collate_result_data(single_result):
+            result = {field: single_result[field] for field in fields_to_show}
+            for id_to_show in identifiers_to_show:
+                identifiers = single_result["*identifier"].split(", ")
+                for i in identifiers:
+                    if i.split(":")[0] == id_to_show:
+                        result[id_to_show] = i.split(":")[1]
+            return result
+
+        return [collate_result_data(r) for r in output_json]
 
     def add(self, book_filepath, options=None):
         """Add a book to the Calibre library.
