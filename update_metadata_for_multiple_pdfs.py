@@ -79,7 +79,7 @@ def get_work_ids(date, fields, calibre):
         "after_date": date,
     }
     if "doi" in fields:
-        kwargs["exclude_identifier_types"] = ["doi", "arxiv doi"]
+        kwargs["exclude_identifier_types"] = ["doi"]
 
     work_ids = calibre.search(**kwargs)
 
@@ -217,7 +217,9 @@ def run(date, fields, use_web_search, no_auto_skip):
 
 def get_title_update_option(book_id, metadata, existing_title):
     possible_titles = [
-        t for t in metadata.get("possible_titles") if t != existing_title
+        t
+        for t in metadata.get("possible_titles")
+        if re.sub(r"  +", " ", t) != existing_title
     ]
     if not possible_titles:
         click.echo(
@@ -227,23 +229,24 @@ No other potential titles were found in the document."""
         )
         return {}
 
+    title_options = ["Don't update title"] + possible_titles
+
     message = f"""
 Document's title in Calibre is "{existing_title}".
 Which of the possible titles found in the document should be used?
 """
-    for no, title in list(enumerate(possible_titles)):
+    for no, title in list(enumerate(title_options)):
         message += f"\t{no}. {title}\n"
-    message += f"\t{len(possible_titles)}. Don't update title\n"
     value = click.prompt(message, type=int)
 
-    while value not in range(len(possible_titles) + 1):
+    while value not in range(len(title_options) + 1):
         value = click.prompt("Please enter a number from the list above", type=int)
 
-    if value == len(possible_titles):
+    if value == 0:
         click.echo("Title will not be updated.")
-        return ""
+        return {}
     else:
-        chosen_title = possible_titles[value]
+        chosen_title = title_options[value]
         return {"title": chosen_title}
 
 

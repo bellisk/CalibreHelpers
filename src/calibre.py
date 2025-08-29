@@ -83,7 +83,7 @@ def collate_search_terms(
         search_term_sets.append(
             " AND ".join(
                 [
-                    f'NOT identifiers:"={id_type}"'
+                    f'NOT identifiers:"={id_type}:"'
                     for id_type in exclude_identifier_types
                 ]
             )
@@ -308,6 +308,7 @@ class CalibreHelper(object):
             "#characters": '"Jane Grey","Captain Scarlet"'
         }
         """
+        options = {k: v.replace('"', '\\"') for k, v in options.items()}
         options_strings = [f'--field={k}:"{v}"' for k, v in options.items()]
 
         command = (
