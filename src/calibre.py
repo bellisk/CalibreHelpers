@@ -37,6 +37,7 @@ def collate_search_terms(
     incomplete=False,
     after_date=None,
     exclude_identifier_types=None,
+    book_id=None,
 ):
     """Turn lists of search terms of different kinds into a search query for calibredb.
 
@@ -87,6 +88,8 @@ def collate_search_terms(
                 ]
             )
         )
+    if book_id:
+        search_term_sets.append(f"id:{book_id}")
 
     return " AND ".join(search_term_sets)
 
@@ -212,6 +215,7 @@ class CalibreHelper(object):
         self,
         fields_to_show=None,
         identifiers_to_show=None,
+        book_id=None,
         authors=None,
         urls=None,
         series=None,
@@ -227,6 +231,7 @@ class CalibreHelper(object):
             fields_to_search_for.append("*identifier")
 
         search_terms = collate_search_terms(
+            book_id=book_id,
             authors=authors,
             book_formats=book_formats,
             series=series,
