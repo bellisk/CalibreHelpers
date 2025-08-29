@@ -128,8 +128,18 @@ def validate_fields(fields):
     is_flag=True,
     help="Search for the document's title on the web to find its DOI.",
 )
-def run(date, fields, use_web_search):
+@click.option(
+    "--no-auto-skip",
+    is_flag=True,
+    help="Don't automatically add document id to the skip list if no DOI is found. "
+    "Ask each time.",
+)
+def run(date, fields, use_web_search, no_auto_skip):
     set_up_logging()
+
+    # It makes sense for auto_skip to be the default and no_auto_skip to be the flagged
+    # behaviour, but writing 'if not no_auto_skip' below is horrible, so let's define it
+    auto_skip = not no_auto_skip
 
     calibre = CalibreHelper(library_path=LIBRARY_PATH)
     try:
@@ -166,10 +176,21 @@ def run(date, fields, use_web_search):
 
         if "doi" in fields:
             if not doc_metadata.get("identifier"):
-                click.echo(
-                    f"No DOI found for document {book_id}, adding id to the skip list"
-                )
-                add_to_skip_list(book_id)
+                if auto_skip:
+                    click.echo(
+                        f"No DOI found for document {book_id}: adding id to the skip "
+                        f"list."
+                    )
+                    add_to_skip_list(book_id)
+                elif (
+                    input(
+                        f"No DOI found for document {book_id}. Add book {book_id} to "
+                        f"the skip list? Y/n"
+                    )
+                    != "n"
+                ):
+                    add_to_skip_list(book_id)
+                    click.echo("Added!")
             else:
                 fields_update_options["identifiers"] = (
                     f'"{doc_metadata["identifier_type"]}:{doc_metadata["identifier"]}"'
