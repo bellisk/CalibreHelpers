@@ -12,8 +12,9 @@ import pdf2doi
 
 from src.calibre import CalibreException, CalibreHelper
 
-supported_fields = {"doi", "title"}
-library_path = "/home/rae/Calibre Library"
+SUPPORTED_FIELDS = {"doi", "title"}
+IDENTIFIER_FIELDS = {"doi"}
+LIBRARY_PATH = "/home/rae/Calibre Library"
 pdf2doi_errors = []
 
 
@@ -97,11 +98,11 @@ def add_to_skip_list(book_id):
 
 
 def validate_fields(fields):
-    unsupported_fields = set(fields).difference(supported_fields)
+    unsupported_fields = set(fields).difference(SUPPORTED_FIELDS)
     if len(unsupported_fields) > 0:
         click.echo(
             f"Unsupported field(s) input: {', '.join(unsupported_fields)}."
-            f"Supported fields are: {', '.join(supported_fields)}."
+            f"Supported fields are: {', '.join(SUPPORTED_FIELDS)}."
         )
         sys.exit()
 
@@ -120,7 +121,7 @@ def validate_fields(fields):
     multiple=True,
     default=["doi"],
     help="Fields to update in Calibre based on metadata derived from the document. "
-    f"Default: doi. Options: {', '.join(supported_fields)}.",
+    f"Default: doi. Options: {', '.join(SUPPORTED_FIELDS)}.",
 )
 @click.option(
     "--use-web-search",
@@ -130,7 +131,7 @@ def validate_fields(fields):
 def run(date, fields, use_web_search):
     set_up_logging()
 
-    calibre = CalibreHelper(library_path=library_path)
+    calibre = CalibreHelper(library_path=LIBRARY_PATH)
     try:
         calibre.check_library()
     except CalibreException as e:
@@ -155,24 +156,30 @@ def run(date, fields, use_web_search):
         n += 1
         click.echo("------------------------------------")
         click.echo(f"### Finding metadata for book {book_id} ({n} out of {len(ids)})")
-        metadata = get_publication_metadata(book_id, fields, calibre)
-        new_metadata = {}
+        doc_metadata = get_publication_metadata(book_id, fields, calibre)
+        existing_metadata = calibre.list_metadata(
+            fields_to_show=[f for f in fields if f not in IDENTIFIER_FIELDS],
+            identifiers_to_show=[f for f in fields if f in IDENTIFIER_FIELDS],
+            book_id=book_id,
+        )[0]
         fields_update_options = {}
 
         if "doi" in fields:
-            if not metadata.get("identifier"):
+            if not doc_metadata.get("identifier"):
                 click.echo(
                     f"No DOI found for document {book_id}, adding id to the skip list"
                 )
                 add_to_skip_list(book_id)
             else:
                 fields_update_options["identifiers"] = (
-                    f'"{metadata["identifier_type"]}:{metadata["identifier"]}"'
+                    f'"{doc_metadata["identifier_type"]}:{doc_metadata["identifier"]}"'
                 )
 
         if "title" in fields:
             fields_update_options.update(
-                get_title_update_option(book_id, metadata, new_metadata)
+                get_title_update_option(
+                    book_id, doc_metadata, existing_metadata["title"]
+                )
             )
 
         if len(fields_update_options) == 0:
@@ -188,13 +195,16 @@ def run(date, fields, use_web_search):
         sleep(15)
 
 
-def get_title_update_option(book_id, metadata, new_metadata):
+def get_title_update_option(book_id, metadata, existing_title):
     possible_titles = metadata.get("possible_titles")
     if not possible_titles:
         click.echo(f"No possible titles found for document {book_id}")
         return ""
 
-    message = "Which of the possible titles found in the document should be used?\n"
+    message = f"""
+Document's title in Calibre is "{existing_title}".
+Which of the possible titles found in the document should be used?
+"""
     for no, title in list(enumerate(possible_titles)):
         message += f"\t{no}. {title}\n"
     message += f"\t{len(possible_titles)}. Don't update title\n"
@@ -208,7 +218,6 @@ def get_title_update_option(book_id, metadata, new_metadata):
         return ""
     else:
         chosen_title = possible_titles[value]
-        new_metadata["title"] = chosen_title
         return {"title": chosen_title}
 
 
