@@ -71,22 +71,21 @@ def get_publication_metadata(book_id, fields, calibre):
     return result
 
 
-def get_work_ids(date, calibre):
-    work_ids = calibre.search(
-        saved_search="Needs tagging",
-        book_formats=["PDF"],
-        exclude_book_formats=["EPUB"],
-        after_date=date,
-        exclude_identifier_types=["doi", "arxiv doi"],
-    )
+def get_work_ids(date, fields, calibre):
+    kwargs = {
+        "saved_search": "Needs tagging",
+        "book_formats": ["PDF"],
+        "exclude_book_formats": ["EPUB"],
+        "after_date": date,
+    }
+    if "doi" in fields:
+        kwargs["exclude_identifier_types"] = ["doi", "arxiv doi"]
+
+    work_ids = calibre.search(**kwargs)
 
     with open("skip_ids.txt") as f:
         ids_to_skip = [line.strip("\n") for line in f.readlines()]
 
-    if work_ids is None:
-        return []
-
-    work_ids = work_ids[2].split(",")
     work_ids = [i for i in work_ids if i not in ids_to_skip]
 
     return work_ids
@@ -151,7 +150,7 @@ def run(date, fields, use_web_search, no_auto_skip):
     validate_fields(fields)
     click.echo(f"Metadata fields to update: {', '.join(fields)}")
 
-    ids = get_work_ids(date, calibre)
+    ids = get_work_ids(date, fields, calibre)
     click.echo(f"Got {len(ids)} works to find metadata for:")
     click.echo(ids)
     click.echo("------------------------------------")
