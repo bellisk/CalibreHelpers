@@ -36,6 +36,7 @@ def collate_search_terms(
     urls=None,
     incomplete=False,
     after_date=None,
+    before_date=None,
     exclude_identifier_types=None,
     book_id=None,
 ):
@@ -79,6 +80,8 @@ def collate_search_terms(
         search_term_sets.append("#status:=In-Progress")
     if after_date:
         search_term_sets.append(f'date:">={after_date}"')
+    if before_date:
+        search_term_sets.append(f'date:"<{before_date}"')
     if exclude_identifier_types:
         search_term_sets.append(
             " AND ".join(
@@ -149,6 +152,7 @@ class CalibreHelper(object):
         exclude_book_formats=None,
         incomplete=False,
         after_date=False,
+        before_date=False,
         exclude_identifier_types=None,
     ):
         """Accepts lists of authors/urls/series/formats to search calibredb for.
@@ -168,6 +172,7 @@ class CalibreHelper(object):
             urls,
             incomplete,
             after_date,
+            before_date,
             exclude_identifier_types,
         )
 
