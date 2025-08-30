@@ -216,10 +216,14 @@ def run(date, fields, use_web_search, no_auto_skip):
 
 
 def get_title_update_option(book_id, metadata, existing_title):
+    # Standardise whitespace characters between possible new title and existing title:
+    # - If the possible new title has multiple whitespaces between words, reduce to one.
+    # - If the existing title has whitespace characters that aren't a regular " ",
+    #   replace with that character.
     possible_titles = [
         t
         for t in metadata.get("possible_titles")
-        if re.sub(r"  +", " ", t) != existing_title
+        if re.sub(r"\s+", " ", t) != re.sub(r"\s", " ", existing_title)
     ]
     if not possible_titles:
         click.echo(
