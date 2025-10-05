@@ -192,7 +192,7 @@ def run(date, fields, use_web_search, no_auto_skip):
                     click.echo("Added!")
             else:
                 fields_update_options["identifiers"] = (
-                    f'"{doc_metadata["identifier_type"]}:{doc_metadata["identifier"]}"'
+                    f'{doc_metadata["identifier_type"]}:{doc_metadata["identifier"]}'
                 )
 
         if "title" in fields:
