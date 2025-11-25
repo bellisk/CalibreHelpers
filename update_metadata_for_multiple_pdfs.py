@@ -221,10 +221,11 @@ def get_title_update_option(book_id, metadata, existing_title):
     # - If the existing title has whitespace characters that aren't a regular " ",
     #   replace with that character.
     possible_titles = [
-        t
+        re.sub(r"\s+", " ", t)
         for t in metadata.get("possible_titles")
         if re.sub(r"\s+", " ", t) != re.sub(r"\s", " ", existing_title)
     ]
+    possible_titles = list(set(possible_titles))
     if not possible_titles:
         click.echo(
             f"""
@@ -233,10 +234,9 @@ No other potential titles were found in the document."""
         )
         return {}
 
-    title_options = ["Don't update title"] + possible_titles
+    title_options = [f"Keep existing title:\n\t   {existing_title}"] + possible_titles
 
     message = f"""
-Document's title in Calibre is "{existing_title}".
 Which of the possible titles found in the document should be used?
 """
     for no, title in list(enumerate(title_options)):
