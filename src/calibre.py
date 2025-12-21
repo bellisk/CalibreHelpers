@@ -299,7 +299,7 @@ class CalibreHelper(object):
         )
 
         command = f"calibredb search {search_terms} {self.library_access_string}"
-        print(command)
+        click.echo(command)
 
         try:
             result = check_and_clean_output(command)
