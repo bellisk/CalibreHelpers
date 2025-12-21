@@ -7,6 +7,14 @@ from urllib.parse import urlparse
 
 import click
 
+ADDITIONAL_SERIES_KEYS = ["series00", "series01", "series02", "series03"]
+ADD_GROUPED_SEARCH_SCRIPT = """from calibre.library import db
+
+db = db("%s").new_api
+db.set_pref("grouped_search_terms", {"allseries": ["series", "#series00", "#series01", "#series02", "#series03"]})
+print(db.pref("grouped_search_terms"))
+"""
+
 
 class CalibreException(Exception):
     def __init__(self, message):
@@ -159,6 +167,7 @@ class CalibreHelper(object):
 
         try:
             # Check that our custom columns are set up, and set them up if not.
+            self.set_up_multiseries_search()
             self.check_or_create_words_column()
             self.check_or_create_extra_columns()
         except CalledProcessError as e:
@@ -167,6 +176,34 @@ class CalibreHelper(object):
             raise CalibreException(
                 f"Error while making sure custom columns exist in Calibre library: "
                 f"{output}",
+            )
+
+    def get_custom_column_names(self):
+        res = check_and_clean_output(
+            f"calibredb custom_columns {self.library_access_string}"
+        )
+        # Get rid of the number after each column name, e.g. "columnname (1)"
+        return [c.split(" ")[0] for c in res.split("\n")]
+
+    def set_up_multiseries_search(self):
+        columns = self.get_custom_column_names()
+
+        if set(columns).intersection(ADDITIONAL_SERIES_KEYS) == set(
+            ADDITIONAL_SERIES_KEYS
+        ):
+            click.echo("Custom AO3 series columns are in Calibre Library")
+        else:
+            click.echo("Adding custom AO3 series columns to Calibre library")
+            for c in ADDITIONAL_SERIES_KEYS:
+                check_and_clean_output(
+                    f"calibredb add_custom_column {self.library_access_string} "
+                    f"{c} {c} series"
+                )
+
+            click.echo("Adding grouped search term 'allseries' to Calibre Library")
+            script = ADD_GROUPED_SEARCH_SCRIPT % self.path
+            check_and_clean_output(
+                f"calibre-debug -c '{script}'",
             )
 
     def search(
