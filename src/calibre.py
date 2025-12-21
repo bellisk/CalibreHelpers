@@ -28,17 +28,17 @@ def check_and_clean_output(command):
 
 
 def collate_search_terms(
-        saved_search=None,
-        authors=None,
-        book_formats=None,
-        exclude_book_formats=None,
-        series=None,
-        urls=None,
-        incomplete=False,
-        after_date=None,
-        before_date=None,
-        exclude_identifier_types=None,
-        book_id=None,
+    saved_search=None,
+    authors=None,
+    book_formats=None,
+    exclude_book_formats=None,
+    series=None,
+    urls=None,
+    incomplete=False,
+    after_date=None,
+    before_date=None,
+    exclude_identifier_types=None,
+    book_id=None,
 ):
     """Turn lists of search terms of different kinds into a search query for calibredb.
 
@@ -143,17 +143,17 @@ class CalibreHelper(object):
             raise CalibreException(clean_output(e.output))
 
     def search(
-            self,
-            saved_search=None,
-            authors=None,
-            urls=None,
-            series=None,
-            book_formats=None,
-            exclude_book_formats=None,
-            incomplete=False,
-            after_date=False,
-            before_date=False,
-            exclude_identifier_types=None,
+        self,
+        saved_search=None,
+        authors=None,
+        urls=None,
+        series=None,
+        book_formats=None,
+        exclude_book_formats=None,
+        incomplete=False,
+        after_date=False,
+        before_date=False,
+        exclude_identifier_types=None,
     ):
         """Accepts lists of authors/urls/series/formats to search calibredb for.
 
@@ -217,15 +217,15 @@ class CalibreHelper(object):
         return os.path.join(location, f"{book_id}.epub")
 
     def list_metadata(
-            self,
-            fields_to_show=None,
-            identifiers_to_show=None,
-            book_id=None,
-            authors=None,
-            urls=None,
-            series=None,
-            book_formats=None,
-            incomplete=False,
+        self,
+        fields_to_show=None,
+        identifiers_to_show=None,
+        book_id=None,
+        authors=None,
+        urls=None,
+        series=None,
+        book_formats=None,
+        incomplete=False,
     ):
         if fields_to_show is None:
             fields_to_show = []

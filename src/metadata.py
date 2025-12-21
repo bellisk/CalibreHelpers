@@ -155,11 +155,11 @@ def extract_and_add(date, fields, use_web_search, no_auto_skip):
                     )
                     add_to_skip_list(book_id)
                 elif (
-                        input(
-                            f"No DOI found for document {book_id}. Add book {book_id} to "
-                            f"the skip list? Y/n"
-                        )
-                        != "n"
+                    input(
+                        f"No DOI found for document {book_id}. Add book {book_id} to "
+                        f"the skip list? Y/n"
+                    )
+                    != "n"
                 ):
                     add_to_skip_list(book_id)
                     click.echo("Added!")
