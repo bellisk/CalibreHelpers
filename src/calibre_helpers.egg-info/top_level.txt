@@ -1,5 +1,0 @@
-__init__
-__main__
-cli
-metadata
-separate_tags_into_categories
