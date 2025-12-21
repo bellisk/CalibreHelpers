@@ -45,7 +45,7 @@ def check_or_create_extra_tag_type_columns(path):
 
 
 def load_tag_type_from_file(tag_type):
-    with open(os.path.join("../exported_tags", tag_type + ".csv")) as f:
+    with open(os.path.join("../config/exported_tags", tag_type + ".csv")) as f:
         exported_tags[tag_type] = [
             line.strip("\n").strip('"') for line in f.readlines()
         ]
