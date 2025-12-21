@@ -1,6 +1,17 @@
+import re
+
 import click
 
-from metadata import FormattedDateType, extract_and_add, supported_fields
+from metadata import SUPPORTED_FIELDS, extract_and_add
+
+
+class FormattedDateType(click.ParamType):
+    name = "date"
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, str) and re.match(r"\d{4}-\d{2}-\d{2}", value):
+            return value
+        self.fail(f"{value!r} is not a date in the format YYYY-MM-DD", param, ctx)
 
 
 @click.group()
@@ -23,18 +34,24 @@ def cli():
     multiple=True,
     default=["doi"],
     help="Fields to update in Calibre based on metadata derived from the document. "
-    f"Default: doi. Options: {', '.join(supported_fields)}.",
+    f"Default: doi. Options: {', '.join(SUPPORTED_FIELDS)}.",
 )
 @click.option(
     "--use-web-search",
     is_flag=True,
     help="Search for the document's title on the web to find its DOI.",
 )
-def extract_metadata(date, fields, use_web_search):
+@click.option(
+    "--no-auto-skip",
+    is_flag=True,
+    help="Don't automatically add document id to the skip list if no DOI is found. "
+    "Ask each time.",
+)
+def extract_metadata(date, fields, use_web_search, no_auto_skip):
     """Extract metadata from PDF files in Calibre library and update it in Calibre.
 
     Example usage:
 
     calibre-helpers extract-metadata --date 2025-06-01 --fields doi --fields title --use-web-search
     """
-    return extract_and_add(date, fields, use_web_search)
+    return extract_and_add(date, fields, use_web_search, no_auto_skip)
