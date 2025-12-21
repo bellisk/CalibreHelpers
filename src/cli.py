@@ -36,11 +36,11 @@ def cli():
     help="Don't automatically add document id to the skip list if no DOI is found. "
     "Ask each time.",
 )
-def extract_metadata(date, fields, use_web_search):
+def extract_metadata(date, fields, use_web_search, no_auto_skip):
     """Extract metadata from PDF files in Calibre library and update it in Calibre.
 
     Example usage:
 
     calibre-helpers extract-metadata --date 2025-06-01 --fields doi --fields title --use-web-search
     """
-    return extract_and_add(date, fields, use_web_search)
+    return extract_and_add(date, fields, use_web_search, no_auto_skip)

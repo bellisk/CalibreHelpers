@@ -83,7 +83,7 @@ def get_work_ids(date, fields, calibre):
 
     work_ids = calibre.search(**kwargs)
 
-    with open("skip_ids.txt") as f:
+    with open(os.path.join(CONFIG_DIR, "skip_ids.txt")) as f:
         ids_to_skip = [line.strip("\n") for line in f.readlines()]
 
     work_ids = [i for i in work_ids if i not in ids_to_skip]
