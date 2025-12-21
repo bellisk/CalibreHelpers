@@ -1,6 +1,17 @@
+import re
+
 import click
 
-from metadata import SUPPORTED_FIELDS, FormattedDateType, extract_and_add
+from metadata import SUPPORTED_FIELDS, extract_and_add
+
+
+class FormattedDateType(click.ParamType):
+    name = "date"
+
+    def convert(self, value, param, ctx):
+        if isinstance(value, str) and re.match(r"\d{4}-\d{2}-\d{2}", value):
+            return value
+        self.fail(f"{value!r} is not a date in the format YYYY-MM-DD", param, ctx)
 
 
 @click.group()

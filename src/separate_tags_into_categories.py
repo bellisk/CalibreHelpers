@@ -1,8 +1,5 @@
-# encoding: utf-8
-import csv
 import json
 import os.path
-import sys
 from pprint import pprint
 from subprocess import PIPE, STDOUT, check_output
 from sys import argv

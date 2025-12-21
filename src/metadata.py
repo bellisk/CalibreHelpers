@@ -18,15 +18,6 @@ LIBRARY_PATH = "/home/rae/Calibre Library"
 pdf2doi_errors = []
 
 
-class FormattedDateType(click.ParamType):
-    name = "date"
-
-    def convert(self, value, param, ctx):
-        if isinstance(value, str) and re.match(r"\d{4}-\d{2}-\d{2}", value):
-            return value
-        self.fail(f"{value!r} is not a date in the format YYYY-MM-DD", param, ctx)
-
-
 class SaveErrorHandler(logging.Handler):
     """pdf2doi logs when it gets an exception from Google (e.g. an HTTP response code
     of 429, too many requests), but it doesn't raise it or give us any way to catch it.
@@ -209,7 +200,7 @@ No other potential titles were found in the document."""
 
     title_options = [f"Keep existing title:\n\t   {existing_title}"] + possible_titles
 
-    message = f"""
+    message = """
 Which of the possible titles found in the document should be used?
 """
     for no, title in list(enumerate(title_options)):
