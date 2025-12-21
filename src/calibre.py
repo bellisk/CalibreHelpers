@@ -134,13 +134,40 @@ class CalibreHelper(object):
                 f"so Calibre will create one",
             )
 
-        # Check if there is another Calibre instance running
+        # Check we can connect to Calibre and there is no other Calibre instance running
         command = f"calibredb list --limit 1 {self.library_access_string}"
 
         try:
             check_and_clean_output(command)
         except CalledProcessError as e:
-            raise CalibreException(clean_output(e.output))
+            output = clean_output(e.output)
+
+            if "urllib.error.URLError" in output:
+                # The path is a url and it's wrong
+                message = f"Error connecting to the url {self.path}"
+            elif "Not Found" in output:
+                # The path is the url to a Calibre server, but the library name is wrong
+                message = f"No Calibre library found at the url {self.path}"
+            else:
+                # If the username or password is wrong, calibredb gives us a nice error
+                # message, so we can just output that.
+                # If there's a new kind of error not already handled, we get a stack
+                # trace. Just output it and deal with it then.
+                message = output
+
+            raise CalibreException(f"Error accessing Calibre library: {message}")
+
+        try:
+            # Check that our custom columns are set up, and set them up if not.
+            self.check_or_create_words_column()
+            self.check_or_create_extra_columns()
+        except CalledProcessError as e:
+            output = clean_output(e.output)
+
+            raise CalibreException(
+                f"Error while making sure custom columns exist in Calibre library: "
+                f"{output}",
+            )
 
     def search(
         self,
