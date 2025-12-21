@@ -1,0 +1,2 @@
+[console_scripts]
+calibre-helpers = cli:cli

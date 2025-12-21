@@ -18,7 +18,7 @@ requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-novel-export = "novel_export.cli:cli"
+calibre-helpers = "cli:cli"
 
 [project.optional-dependencies]
 dev = ["black", "isort"]

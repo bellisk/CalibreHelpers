@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import subprocess
 import sys
@@ -9,6 +10,8 @@ from time import sleep
 
 import click
 import pdf2doi
+
+from utils import CONFIG_DIR
 
 supported_fields = {"doi", "title"}
 path = '--with-library "/home/rae/Calibre Library"'
@@ -44,9 +47,13 @@ def set_up_logging():
 def get_publication_metadata(book_id, fields):
     loc = mkdtemp()
     try:
-        check_output(
+        cmd = (
             f"calibredb export --dont-save-cover --dont-write-opf --single-dir "
-            f'--to-dir "{loc}" --template="{id}" {path} {book_id}',
+            f'--to-dir "{loc}" --template="{{id}}" {path} {book_id}'
+        )
+
+        check_output(
+            cmd,
             shell=True,
             stdin=PIPE,
             stderr=STDOUT,
@@ -90,7 +97,7 @@ def get_work_ids(date):
         stderr=STDOUT,
         stdin=PIPE,
     )
-    with open("skip_ids.txt") as f:
+    with open(os.path.join(CONFIG_DIR, "skip_ids.txt")) as f:
         ids_to_skip = [line.strip("\n") for line in f.readlines()]
 
     work_ids_result = re.search(
@@ -106,7 +113,7 @@ def get_work_ids(date):
 
 
 def add_to_skip_list(book_id):
-    with open("skip_ids.txt", "a") as f:
+    with open(os.path.join(CONFIG_DIR, "skip_ids.txt"), "a") as f:
         f.write(book_id + "\n")
 
 
@@ -120,28 +127,7 @@ def validate_fields(fields):
         sys.exit()
 
 
-@click.command()
-@click.option(
-    "--date",
-    default="2025-06-01",
-    type=FormattedDateType(),
-    help="The earliest added date to filter by in Calibre. Format: YYYY-MM-DD. "
-    "Default: 2025-06-01.",
-)
-@click.option(
-    "--fields",
-    "-f",
-    multiple=True,
-    default=["doi"],
-    help="Fields to update in Calibre based on metadata derived from the document. "
-    f"Default: doi. Options: {', '.join(supported_fields)}.",
-)
-@click.option(
-    "--use-web-search",
-    is_flag=True,
-    help="Search for the document's title on the web to find its DOI.",
-)
-def run(date, fields, use_web_search):
+def extract_and_add(date, fields, use_web_search):
     set_up_logging()
 
     validate_fields(fields)

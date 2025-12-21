@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: calibre-helpers
+Version: 0.1
+Summary: Scripts to help me manage my Calibre library
+Author: Rae Knowler
+License-Expression: Apache-2.0
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: certifi
+Requires-Dist: click
+Requires-Dist: pdf2doi
+Provides-Extra: dev
+Requires-Dist: black; extra == "dev"
+Requires-Dist: isort; extra == "dev"
+Dynamic: license-file
+
+# CalibreHelpers
+Scripts to help me manage my Calibre library

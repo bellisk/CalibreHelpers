@@ -1,0 +1,7 @@
+certifi
+click
+pdf2doi
+
+[dev]
+black
+isort
