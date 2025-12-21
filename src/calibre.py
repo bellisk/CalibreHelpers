@@ -108,10 +108,38 @@ def collate_search_terms(
 class CalibreHelper(object):
     """Calls calibredb CLI commands."""
 
-    def __init__(self, library_path, user=None, password=None):
+    def __init__(
+        self,
+        library_path,
+        user=None,
+        password=None,
+        words_column=True,
+        multiseries_search=True,
+        extra_tag_columns=None,
+    ):
+        """Init CalibreHelper.
+
+        :param library_path:        str     Path to or url for Calibre library
+        :param user:                str     Username, if library is password protected
+        :param password:            str     Password, if library is password protected
+        :param words_column:        bool    If we expect an int-type column for
+                                            wordcount in the library. Will create one if
+                                            it is not present.
+        :param multiseries_search:  bool    If we expect the library to handle books
+                                            belonging to multiple series. Will set this
+                                            up if it is not already done.
+        :param extra_tag_columns:   list    A list of extra tag-type columns that the
+                                            library should have. Will create these if
+                                            they do not exist.
+        """
         self.path = library_path
         self.user = user
         self.password = password
+        self.words_column = words_column
+        self.multiseries_search = multiseries_search
+        self.extra_tag_columns = (
+            extra_tag_columns if extra_tag_columns is not None else []
+        )
 
         self.library_access_string = f'--with-library="{self.path}" '
         if user:
@@ -167,9 +195,13 @@ class CalibreHelper(object):
 
         try:
             # Check that our custom columns are set up, and set them up if not.
-            self.set_up_multiseries_search()
-            self.check_or_create_words_column()
-            self.check_or_create_extra_columns()
+            custom_columns = self.get_custom_column_names()
+            if self.words_column:
+                self.check_or_create_words_column(custom_columns)
+            if self.multiseries_search:
+                self.set_up_multiseries_search(custom_columns)
+            if self.extra_tag_columns:
+                self.check_or_create_extra_tag_columns(custom_columns)
         except CalledProcessError as e:
             output = clean_output(e.output)
 
@@ -185,15 +217,13 @@ class CalibreHelper(object):
         # Get rid of the number after each column name, e.g. "columnname (1)"
         return [c.split(" ")[0] for c in res.split("\n")]
 
-    def set_up_multiseries_search(self):
-        columns = self.get_custom_column_names()
-
-        if set(columns).intersection(ADDITIONAL_SERIES_KEYS) == set(
+    def set_up_multiseries_search(self, custom_columns):
+        if set(custom_columns).intersection(ADDITIONAL_SERIES_KEYS) == set(
             ADDITIONAL_SERIES_KEYS
         ):
-            click.echo("Custom AO3 series columns are in Calibre Library")
+            click.echo("Additional series columns are already in Calibre Library")
         else:
-            click.echo("Adding custom AO3 series columns to Calibre library")
+            click.echo("Adding additional series columns to Calibre library")
             for c in ADDITIONAL_SERIES_KEYS:
                 check_and_clean_output(
                     f"calibredb add_custom_column {self.library_access_string} "
@@ -205,6 +235,34 @@ class CalibreHelper(object):
             check_and_clean_output(
                 f"calibre-debug -c '{script}'",
             )
+
+    def check_or_create_words_column(self, custom_columns):
+        for c in custom_columns:
+            if c.startswith("words"):
+                return
+
+        click.echo("Adding custom column 'words' to Calibre library")
+        check_and_clean_output(
+            f"calibredb add_custom_column {self.library_access_string} words Words int"
+        )
+
+    def check_or_create_extra_tag_columns(self, custom_columns):
+        if set(custom_columns).intersection(self.extra_tag_columns) == set(
+            self.extra_tag_columns
+        ):
+            click.echo(
+                f"Custom tag-type columns are in Calibre Library: "
+                f"{self.extra_tag_columns}"
+            )
+        else:
+            click.echo(
+                f"Adding tag-type columns in Calibre library: {self.extra_tag_columns}"
+            )
+            for tag in self.extra_tag_columns:
+                check_and_clean_output(
+                    f"calibredb add_custom_column {self.library_access_string} "
+                    f"{tag} {tag} text --is-multiple"
+                )
 
     def search(
         self,
