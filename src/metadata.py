@@ -1,20 +1,20 @@
 import logging
-import os
+import os.path
 import re
-import subprocess
 import sys
 from os.path import join
-from subprocess import PIPE, STDOUT, check_output
 from tempfile import mkdtemp
 from time import sleep
 
 import click
 import pdf2doi
 
+from calibre import CalibreException, CalibreHelper
 from utils import CONFIG_DIR
 
-supported_fields = {"doi", "title"}
-path = '--with-library "/home/rae/Calibre Library"'
+SUPPORTED_FIELDS = {"doi", "title"}
+IDENTIFIER_FIELDS = {"doi"}
+LIBRARY_PATH = "/home/rae/Calibre Library"
 pdf2doi_errors = []
 
 
@@ -44,22 +44,9 @@ def set_up_logging():
     pdf2doi_logger.addHandler(requests_handler)
 
 
-def get_publication_metadata(book_id, fields):
+def get_publication_metadata(book_id, fields, calibre):
     loc = mkdtemp()
-    try:
-        cmd = (
-            f"calibredb export --dont-save-cover --dont-write-opf --single-dir "
-            f'--to-dir "{loc}" --template="{{id}}" {path} {book_id}'
-        )
-
-        check_output(
-            cmd,
-            shell=True,
-            stdin=PIPE,
-            stderr=STDOUT,
-        )
-    except subprocess.CalledProcessError as e:
-        sys.exit(e.output)
+    calibre.export(book_id, loc)
 
     pdf_filepath = join(loc, f"{book_id}.pdf")
     result = {}
@@ -84,29 +71,21 @@ def get_publication_metadata(book_id, fields):
     return result
 
 
-def get_work_ids(date):
-    calibre_command = (
-        f'calibredb search {path} formats:"=PDF" and '
-        f'not formats:"=EPUB" and search:"\\"=Needs tagging\\"" and '
-        f'not identifiers:"=doi:" and not identifiers:"\\"=arxiv doi:\\"" and '
-        f'date:">={date}"'
-    )
-    work_ids_output = check_output(
-        calibre_command,
-        shell=True,
-        stderr=STDOUT,
-        stdin=PIPE,
-    )
-    with open(os.path.join(CONFIG_DIR, "skip_ids.txt")) as f:
+def get_work_ids(date, fields, calibre):
+    kwargs = {
+        "saved_search": "Needs tagging",
+        "book_formats": ["PDF"],
+        "exclude_book_formats": ["EPUB"],
+        "after_date": date,
+    }
+    if "doi" in fields:
+        kwargs["exclude_identifier_types"] = ["doi"]
+
+    work_ids = calibre.search(**kwargs)
+
+    with open("skip_ids.txt") as f:
         ids_to_skip = [line.strip("\n") for line in f.readlines()]
 
-    work_ids_result = re.search(
-        "b'(Initialized urlfixer\\\\n)?(.*)'", str(work_ids_output)
-    )
-    if work_ids_result is None:
-        return []
-
-    work_ids = work_ids_result[2].split(",")
     work_ids = [i for i in work_ids if i not in ids_to_skip]
 
     return work_ids
@@ -118,22 +97,33 @@ def add_to_skip_list(book_id):
 
 
 def validate_fields(fields):
-    unsupported_fields = set(fields).difference(supported_fields)
+    unsupported_fields = set(fields).difference(SUPPORTED_FIELDS)
     if len(unsupported_fields) > 0:
         click.echo(
             f"Unsupported field(s) input: {', '.join(unsupported_fields)}."
-            f"Supported fields are: {', '.join(supported_fields)}."
+            f"Supported fields are: {', '.join(SUPPORTED_FIELDS)}."
         )
         sys.exit()
 
 
-def extract_and_add(date, fields, use_web_search):
+def extract_and_add(date, fields, use_web_search, no_auto_skip):
     set_up_logging()
+
+    # It makes sense for auto_skip to be the default and no_auto_skip to be the flagged
+    # behaviour, but writing 'if not no_auto_skip' below is horrible, so let's define it
+    auto_skip = not no_auto_skip
+
+    calibre = CalibreHelper(library_path=LIBRARY_PATH)
+    try:
+        calibre.check_library()
+    except CalibreException as e:
+        click.echo(e)
+        sys.exit()
 
     validate_fields(fields)
     click.echo(f"Metadata fields to update: {', '.join(fields)}")
 
-    ids = get_work_ids(date)
+    ids = get_work_ids(date, fields, calibre)
     click.echo(f"Got {len(ids)} works to find metadata for:")
     click.echo(ids)
     click.echo("------------------------------------")
@@ -147,71 +137,91 @@ def extract_and_add(date, fields, use_web_search):
     for book_id in ids:
         n += 1
         click.echo("------------------------------------")
-        click.echo(f"### Finding DOI for book {book_id} ({n} out of {len(ids)})")
-        metadata = get_publication_metadata(book_id, fields)
-        new_metadata = {}
-        fields_update_options = ""
+        click.echo(f"### Finding metadata for book {book_id} ({n} out of {len(ids)})")
+        doc_metadata = get_publication_metadata(book_id, fields, calibre)
+        existing_metadata = calibre.list_metadata(
+            fields_to_show=[f for f in fields if f not in IDENTIFIER_FIELDS],
+            identifiers_to_show=[f for f in fields if f in IDENTIFIER_FIELDS],
+            book_id=book_id,
+        )[0]
+        fields_update_options = {}
 
         if "doi" in fields:
-            if not metadata.get("identifier"):
-                click.echo(
-                    f"No DOI found for document {book_id}, adding id to the skip list"
-                )
-                add_to_skip_list(book_id)
+            if not doc_metadata.get("identifier"):
+                if auto_skip:
+                    click.echo(
+                        f"No DOI found for document {book_id}: adding id to the skip "
+                        f"list."
+                    )
+                    add_to_skip_list(book_id)
+                elif (
+                        input(
+                            f"No DOI found for document {book_id}. Add book {book_id} to "
+                            f"the skip list? Y/n"
+                        )
+                        != "n"
+                ):
+                    add_to_skip_list(book_id)
+                    click.echo("Added!")
             else:
-                fields_update_options += (
-                    f"--field identifiers:"
-                    f'"{metadata["identifier_type"]}:{metadata["identifier"]}" '
+                fields_update_options["identifiers"] = (
+                    f'{doc_metadata["identifier_type"]}:{doc_metadata["identifier"]}'
                 )
-                new_metadata[metadata["identifier_type"]] = metadata["identifier"]
 
         if "title" in fields:
-            fields_update_options += get_title_update_option(
-                book_id, metadata, new_metadata
+            fields_update_options.update(
+                get_title_update_option(
+                    book_id, doc_metadata, existing_metadata["title"]
+                )
             )
 
         if len(fields_update_options) == 0:
             click.echo("Nothing to update.")
             continue
 
-        command = f"calibredb set_metadata {path} {fields_update_options} {book_id}"
-        result = check_output(
-            command,
-            shell=True,
-            stderr=STDOUT,
-            stdin=PIPE,
-        )
+        calibre.set_metadata(book_id, fields_update_options)
         click.echo(
             f"Updated book {book_id} with metadata "
-            f"{[k + ': ' + v for k, v in new_metadata.items()]}"
+            f"{[k + ': ' + v for k, v in fields_update_options.items()]}"
         )
 
         sleep(15)
 
 
-def get_title_update_option(book_id, metadata, new_metadata):
-    possible_titles = metadata.get("possible_titles")
+def get_title_update_option(book_id, metadata, existing_title):
+    # Standardise whitespace characters between possible new title and existing title:
+    # - If the possible new title has multiple whitespaces between words, reduce to one.
+    # - If the existing title has whitespace characters that aren't a regular " ",
+    #   replace with that character.
+    possible_titles = [
+        re.sub(r"\s+", " ", t)
+        for t in metadata.get("possible_titles")
+        if re.sub(r"\s+", " ", t) != re.sub(r"\s", " ", existing_title)
+    ]
+    possible_titles = list(set(possible_titles))
     if not possible_titles:
-        click.echo(f"No possible titles found for document {book_id}")
-        return ""
+        click.echo(
+            f"""
+Document {book_id}'s title in Calibre is "{existing_title}".
+No other potential titles were found in the document."""
+        )
+        return {}
 
-    message = "Which of the possible titles found in the document should be used?\n"
-    for no, title in list(enumerate(possible_titles)):
+    title_options = [f"Keep existing title:\n\t   {existing_title}"] + possible_titles
+
+    message = f"""
+Which of the possible titles found in the document should be used?
+"""
+    for no, title in list(enumerate(title_options)):
         message += f"\t{no}. {title}\n"
-    message += f"\t{len(possible_titles)}. Don't update title\n"
     value = click.prompt(message, type=int)
 
-    while value not in range(len(possible_titles) + 1):
+    while value not in range(len(title_options) + 1):
         value = click.prompt("Please enter a number from the list above", type=int)
 
-    if value == len(possible_titles):
+    if value == 0:
         click.echo("Title will not be updated.")
-        return ""
+        return {}
     else:
-        chosen_title = possible_titles[value]
-        new_metadata["title"] = chosen_title
-        return f'--field title:"{chosen_title}" '
-
-
-if __name__ == "__main__":
-    run()
+        chosen_title = title_options[value]
+        return {"title": chosen_title}
