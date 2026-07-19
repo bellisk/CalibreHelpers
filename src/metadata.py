@@ -8,8 +8,8 @@ from time import sleep
 
 import click
 import pdf2doi
-
 from calibre import CalibreException, CalibreHelper
+
 from utils import CONFIG_DIR
 
 SUPPORTED_FIELDS = {"doi", "title"}

@@ -1,7 +1,6 @@
 import re
 
 import click
-
 from metadata import SUPPORTED_FIELDS, extract_and_add
 
 
