@@ -191,11 +191,9 @@ def get_title_update_option(book_id, metadata, existing_title):
     ]
     possible_titles = list(set(possible_titles))
     if not possible_titles:
-        click.echo(
-            f"""
+        click.echo(f"""
 Document {book_id}'s title in Calibre is "{existing_title}".
-No other potential titles were found in the document."""
-        )
+No other potential titles were found in the document.""")
         return {}
 
     title_options = [f"Keep existing title:\n\t   {existing_title}"] + possible_titles
