@@ -5,7 +5,7 @@ description = "Scripts to help me manage my Calibre library"
 readme = "README.md"
 authors = [{name = "Rae Knowler"}]
 license = "Apache-2.0"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 classifiers = []
 dependencies = [
     "certifi",
@@ -25,3 +25,7 @@ dev = ["black", "isort"]
 
 [tool.isort]
 profile = "black"
+known_first_party = "metadata"
+
+[tool.black]
+line-length = 88
