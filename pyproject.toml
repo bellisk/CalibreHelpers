@@ -17,6 +17,9 @@ dependencies = [
 requires = ["setuptools >= 77.0.3"]
 build-backend = "setuptools.build_meta"
 
+[project.urls]
+Homepage = "https://github.com/bellisk/CalibreHelpers"
+
 [project.scripts]
 calibre-helpers = "cli:cli"
 
