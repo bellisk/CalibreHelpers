@@ -435,7 +435,7 @@ class CalibreHelper(object):
             "#characters": '"Jane Grey","Captain Scarlet"'
         }
         """
-        options = {k: v.replace('"', '\\"') for k, v in options.items()}
+        options = {k: str(v).replace('"', '\\"') for k, v in options.items()}
         options_strings = [f'--field={k}:"{v}"' for k, v in options.items()]
 
         command = (
